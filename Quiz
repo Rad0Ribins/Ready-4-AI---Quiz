@@ -1,0 +1,96 @@
+import json
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+client = OpenAI()
+
+SCHEMAT_QUIZU = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "schemat_odpowiedzi_quizu",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "pytania": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "question": {"type": "string"},
+                            "a": {"type": "string"},
+                            "b": {"type": "string"},
+                            "c": {"type": "string"},
+                            "d": {"type": "string"},
+                            "correct_answer": {"type": "string"}
+                        },
+                        "required": ["question", "a", "b", "c", "d", "correct_answer"],
+                        "additionalProperties": False
+                    }
+                }
+            },
+            "required": ["pytania"],
+            "additionalProperties": False
+        }
+    }
+}
+
+def generuj_pytania():
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {"role": "system", "content": "Jesteś twórcą quizów edukacyjnych."},
+            {"role": "user", "content": "Wygeneruj 10 pytań o historycznych sukcesach Polaków na zimowych igrzyskach."}
+        ],
+        response_format=SCHEMAT_QUIZU 
+    )
+    
+    tekst = response.choices[0].message.content
+    dane = json.loads(tekst)
+    
+    return dane["pytania"]
+
+def uruchom_quiz(lista_pytan):
+    punkty = 0
+    bledy = [] 
+
+    print("Zaczynamy quiz!")
+    
+    numer = 1 
+    for p in lista_pytan:
+        print("\nPytanie", numer, ":", p["question"])
+        print("a)", p["a"])
+        print("b)", p["b"])
+        print("c)", p["c"])
+        print("d)", p["d"])
+        
+        odp = input("Podaj odpowiedź (a/b/c/d): ").strip().lower()
+        
+        if odp == p["correct_answer"]:
+            print("Dobrze!")
+            punkty = punkty + 1
+        else:
+            print("Źle!")
+            bledy.append({
+                "tresc_pytania": p["question"],
+                "twoja_odpowiedz": odp,
+                "poprawna_odpowiedz": p["correct_answer"]
+            })
+        
+        numer = numer + 1
+
+    print("\n--- Koniec quizu ---")
+    print("Twój wynik to:", punkty, "/", len(lista_pytan))
+    
+    if len(bledy) > 0:
+        print("\nTutaj popełniłeś błędy:")
+        for b in bledy:
+            print("Pytanie:", b["tresc_pytania"])
+            print("Podałeś:", b["twoja_odpowiedz"])
+            print("Powinno być:", b["poprawna_odpowiedz"])
+            print("-")
+
+pytania = generuj_pytania()
+uruchom_quiz(pytania)
+
