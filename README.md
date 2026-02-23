@@ -1,1 +1,0 @@
-# Ready-4-AI---Quiz
